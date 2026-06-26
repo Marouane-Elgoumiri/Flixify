@@ -11,9 +11,9 @@ class Failure {
 }
 
 class ServerFailure extends Failure {
-  ServerFailure({String message = "Server failure"}) : super(message);
+  ServerFailure({String message = 'Server failure'}) : super(message);
 }
 
 class CacheFailure extends Failure {
-  CacheFailure({String message = "Cache failure"}) : super(message);
+  CacheFailure({String message = 'Cache failure'}) : super(message);
 }

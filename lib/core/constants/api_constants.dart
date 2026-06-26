@@ -3,11 +3,11 @@ class ApiConstants {
   ApiConstants._(); // Private constructor
 
   // --- TMDb API Configuration ---
-  static const String tmdbBaseUrl = 'https://api.themoviedb.org/3";
-  static const String tmdbImageBaseUrl = "https://image.tmdb.org/t/p/w500";
+  static const String tmdbBaseUrl = 'https://api.themoviedb.org/3';
+  static const String tmdbImageBaseUrl = 'https://image.tmdb.org/t/p/w500';
 
   // --- Vidking Provider ---
-  static const String vidkingBaseUrl = "https://www.vidking.net/embed";
+  static const String vidkingBaseUrl = 'https://www.vidking.net/embed';
 
   // --- API Endpoints ---
   static String getMovieDetails(int movieId) => '/movie/$movieId';
@@ -18,6 +18,6 @@ class ApiConstants {
   // Ensure you replace '23349809' with your actual account ID in production.
   static String getRatedMovies(int accountId) => '/account/$accountId/rated/movies';
 
-  // Note: API Key and Access Token should be stored in the .env file
+  // Note: API Key and Access Token should be stored in the .env.example file
   // Do not hardcode them here.
 }

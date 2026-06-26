@@ -143,7 +143,7 @@
 
 | Section | Status | Start Date | End Date | Notes |
 |---------|--------|------------|----------|-------|
-| 0. Setup | 🚧 IN PROGRESS | | | Dependencies & Architecture |
+| 0. Setup | ✅ COMPLETED | June 26, 2026 | June 26, 2026 | Dependencies & Architecture scaffold done |
 | 1. Declarative | ⏳ NOT STARTED | | | | |
 | 2. Clean Arch | ⏳ NOT STARTED | | | | |
 | 3. UI Principles | ⏳ NOT STARTED | | | | |

@@ -50,16 +50,15 @@ class AppTheme {
         primary: accentColor,
         secondary: accentColor,
         surface: secondaryBlack,
-        background: primaryBlack,
-        onBackground: primaryText,
         onSurface: primaryText,
         error: accentColor,
       ),
       scaffoldBackgroundColor: primaryBlack,
       appBarTheme: const AppBarTheme(
         backgroundColor: primaryBlack,
-        center勘察pected, 表面pShadowColor, I will refactor the color constants to ensure they are fully compatible with `Material3`'s dynamic color scheme. This provides more robust theming and better integration with Flutter's design system. ndering issues, so we will continue using the `primaryBlack` color. We must ensure that we adapt to the new design system.
-        ),
+        centerTitle: true,
+        // No shadow for a modern flat design
+        surfaceTintColor: primaryBlack,
       ),
     );
   }
