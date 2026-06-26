@@ -1,0 +1,88 @@
+name: my_app
+description: "A Netflix-style streaming app built with Flutter, GetX, and Clean Architecture."
+
+# The version number for your application.
+# Both the version and the build number may be overridden with --build-name and --build-number.
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+# Dependencies specify other packages that your package needs in order to work.
+dependencies:
+  # The Flutter SDK is the core of the framework.
+  flutter:
+    sdk: flutter
+
+  # --- UI & Design ---
+  # Cupertino icons for iOS-style icons.
+  cupertino_icons: ^1.0.8
+  # For loading and caching network images (essential for movie posters).
+  cached_network_image: ^3.3.0
+
+  # --- HTTP & Networking ---
+  # A powerful HTTP client for Dart to call the TMDb API and your provider.
+  dio: ^5.5.4+1
+  # A logger for Dio to see API requests in debug mode.
+  pretty_dio_logger: ^1.4.0
+
+  # --- State Management ---
+  # GetX: A lightweight, high-performance state management solution.
+  # We'll use it for state management, dependency injection, and navigation.
+  get: ^4.6.6
+
+  # --- JSON Serialization ---
+  # For generating JSON serialization code (fromJSON/toJSON).
+  json_annotation: ^4.9.0
+
+  # --- WebView ---
+  # To embed the Vidking player inside our app.
+  webview_flutter: ^4.9.0
+
+  # --- Environment Variables ---
+  # To load API keys and other sensitive data from a .env file.
+  flutter_dotenv: ^5.2.1
+  # To safely compare cryptographic hashes if needed.
+  # crypto: ^3.0.6 (Commenting out for now)
+
+  # --- Firebase (for Section 6) ---
+  # The core Flutter plugin for Firebase.
+  firebase_core: ^3.12.1
+  # Firebase authentication for user login/registration.
+  firebase_auth: ^5.5.1
+  # Cloud Firestore for the NoSQL database.
+  cloud_firestore: ^5.6.12
+
+# Dev-dependencies are packages required during development only.
+dev_dependencies:
+  # The official testing framework for Flutter.
+  flutter_test:
+    sdk: flutter
+
+  # A set of recommended lints to encourage good coding practices.
+  flutter_lints: ^6.0.0
+
+  # Build runner is required to run code generation tools (like for JSON serialization).
+  build_runner: ^2.4.14
+
+  # The code generator for json_annotation.
+  json_serializable: ^6.9.4
+
+# The following section is specific to Flutter packages.
+flutter:
+  # The Material Icons font is included so we can use the icons in the Material Icons class.
+  uses-material-design: true
+
+  # To add assets to your application, add an assets section here.
+  # We will use this for theme images, logos, or local data.
+  assets:
+    - .env
+    # - images/
+
+  # If you want to add custom fonts (e.g., for a Netflix-style look), add them here.
+  # fonts:
+  #   - family: NetflixSans
+  #     fonts:
+  #       - asset: fonts/NetflixSans-Regular.ttf
+  #       - asset: fonts/NetflixSans-Bold.ttf
+  #         weight: 700
