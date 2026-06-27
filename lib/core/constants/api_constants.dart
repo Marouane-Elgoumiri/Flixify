@@ -12,12 +12,12 @@ class ApiConstants {
   // --- API Endpoints ---
   static String getMovieDetails(int movieId) => '/movie/$movieId';
   static String getTvShowDetails(int tvId) => '/tv/$tvId';
-  static String getTrendingMovies() => '/trending/movie/week';
+  static String getTrendingMovies([String timeWindow = 'week']) => '/trending/movie/$timeWindow';
+  static String getTopRatedMovies() => '/movie/top_rated';
 
-  // --- User Account Endpoints (Using account ID 23349809 from user provided curl) ---
-  // Ensure you replace '23349809' with your actual account ID in production.
+  // --- User Account Endpoints ---
   static String getRatedMovies(int accountId) => '/account/$accountId/rated/movies';
 
-  // Note: API Key and Access Token should be stored in the .env.example file
+  // Note: API Key and Access Token should be stored in the .env file.
   // Do not hardcode them here.
 }

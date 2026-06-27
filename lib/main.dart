@@ -12,19 +12,19 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 /// platform-specific code runs (like Firebase or loading assets).
 ///
 /// We wrap the app in a try-catch block to handle any critical errors 
-/// during startup, such as failing to load the .env.example file.
+/// during startup, such as failing to load the .env file.
 void main() async {
   // Necessary for async operations before runApp().
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load environment variables from the .env.example file.
+  // Load environment variables from the .env file.
   // This allows us to keep API keys out of the source code.
   try {
-    await dotenv.load(fileName: '.env.example');
+    await dotenv.load(fileName: '.env');
   } catch (e) {
     // In a real app, you might want to show a user-friendly error.
     // For now, we just log it.
-    debugPrint('Could not load .env.example file: $e');
+    debugPrint('Could not load .env file: $e');
   }
 
   runApp(const MyApp());

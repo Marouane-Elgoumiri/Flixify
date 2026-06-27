@@ -1,6 +1,6 @@
 # 🎬 Flixify — Flutter Learning Sprint
 
-> A Netflix-style streaming app built to master Flutter, GetX, Clean Architecture, and Firebase在湖南猫。
+> A Netflix-style streaming app built to master Flutter, GetX, Clean Architecture, and Firebase.
 
 ---
 
@@ -12,7 +12,7 @@
 | **Purpose** | Learn Flutter by doing, building a Netflix-style streaming app |
 | **Architecture** | Clean Architecture with GetX state management |
 | **Target** | Android (primary) |
-| **Current Section** | Section 0: Project Bootstrapping & Setup |
+| **Current Section** | Section 3: UI Principles & Netflix-Style Layout |
 
 ---
 
@@ -29,19 +29,15 @@
 ## 🛤️ Learning Sections
 
 ### Section 0: Project Bootstrapping & Environment Setup
-**Status**: 🚧 IN PROGRESS
+**Status**: ✅ COMPLETED
 **Goal**: Initialize the project with all dependencies, folder structure, and clean architecture foundation.
 **Deliverables**:
-- [ ] pubspec.yaml with all dependencies
-- [ ] Clean folder structure (core, data, domain, presentation)
-- [ ] Android configuration (minSdk, permissions, manifest)
-- [ ] Base theme and constants
-- [ ] Analysis options configuration
-
-**Teaching Focus**:
-- Understanding `pub` — dependency management in Dart/Flutter.
-- Why we separate code into layers (Separation of Concerns).
-- The role of `analysis_options.yaml` in enforcing code quality.
+- [x] pubspec.yaml with all dependencies
+- [x] Clean folder structure (core, data, domain, presentation)
+- [x] Android configuration (minSdk, permissions, manifest)
+- [x] Base theme and constants
+- [x] Analysis options configuration
+- [x] Challenge completed: Added `getTopRatedMovies()` endpoint and `actionButton` TextStyle
 
 ---
 
@@ -60,14 +56,14 @@
 ---
 
 ### Section 2: Clean Code Architecture
-**Status**: ⏳ NOT STARTED
+**Status**: ✅ COMPLETED
 **Goal**: Build a scalable foundation using SOLID principles.
 **Deliverables**:
-- [ ] Domain layer (Entities, Abstract Repositories, Use Cases)
-- [ ] Data layer (Models, Data Sources, Repository Impl)
-- [ ] Presentation layer (Widgets, Controllers)
-- [ ] Dependency Injection with GetX
-- [ ] Error handling with `Either<Failure, Success>`
+- [x] Domain layer (Entities, Abstract Repositories, Use Cases)
+- [x] Data layer (Models, Data Sources, Repository Impl)
+- [x] Presentation layer (Widgets, Controllers)
+- [x] Dependency Injection with GetX
+- [x] Error handling with `Result<Success, Failure>`
 
 **Teaching Focus**:
 - Why a clean architecture is necessary for a real production app.
@@ -77,18 +73,19 @@
 ---
 
 ### Section 3: UI Principles & Netflix-Style Layout
-**Status**: ⏳ NOT STARTED
-**Goal**: Master the building blocks of any complex UI.
+**Status**: ✅ COMPLETED
+**Goal**: Master Row/Column/Stack layouts and the 7-number dimension system.
 **Deliverables**:
-- [ ] Netflix-style home screen (Hero Banner, Category Rows)
-- [ ] Horizontal scrolling carousels with `ListView`
-- [ ] Bottom navigation (Home, Search, My List, Profile)
-- [ ] Themes, custom widgets, and the 7-number system
+- [x] Netflix-style home screen (Hero Banner, Category Rows)
+- [x] Horizontal scrolling carousels with `ListView`
+- [x] Bottom navigation (Home, Search, My List, Profile)
+- [x] Themes, custom widgets, and the 7-number system
+- [x] Flexible vs Expanded comparison demo
 
 **Teaching Focus**:
-- The box model in Flutter (Constraints go down旨在, Sizes go旨在).
+- The Flutter box model: constraints go DOWN, sizes go UP.
 - `Row` & `Column` alignment and `MainAxis` / `CrossAxis`.
-- `Flexible` vs `Expanded`: The difference that makes or breaks a layout.
+- `Flexible` vs `Expanded`: the difference that makes or breaks a layout.
 
 ---
 
@@ -143,10 +140,10 @@
 
 | Section | Status | Start Date | End Date | Notes |
 |---------|--------|------------|----------|-------|
-| 0. Setup | ✅ COMPLETED | June 26, 2026 | June 26, 2026 | Dependencies & Architecture scaffold done |
-| 1. Declarative | ⏳ NOT STARTED | | | | |
-| 2. Clean Arch | ⏳ NOT STARTED | | | | |
-| 3. UI Principles | ⏳ NOT STARTED | | | | |
+| 0. Setup | ✅ COMPLETED | June 26, 2026 | June 26, 2026 | Dependencies & Architecture scaffold done, challenge completed |
+| 1. Declarative | ✅ COMPLETED | June 26, 2026 | June 26, 2026 | 3 counter approaches + MovieCard built |
+| 2. Clean Arch | ✅ COMPLETED | June 26, 2026 | June 26, 2026 | Domain/Data layers, Repository, UseCases, DI with GetX |
+| 3. UI Principles | ✅ COMPLETED | June 27, 2026 | June 27, 2026 | Hero banner, horizontal rows, bottom nav, 7-number system |
 | 4. GetX State | ⏳ NOT STARTED | | | | |
 | 5. Firebase Auth | ⏳ NOT STARTED | | | | |
 | 6. WebView | ⏳ NOT STARTED | | | | |
@@ -165,10 +162,14 @@ For each section to be considered complete:
 
 ## 🚀 Next Steps
 
-1. Complete **Section 0: Project Bootstrapping**
-2. Move to **Section 1: Declarative vs Imperative**
-3. Iterate through each section until **Flixify is complete**.
+1. ✅ Complete **Section 0: Project Bootstrapping** ✅
+2. ✅ Complete **Section 1: Declarative vs Imperative** ✅
+3. ✅ Complete **Section 2: Clean Code Architecture** ✅
+4. ✅ Complete **Section 3: UI Principles** ✅
+5. 🚀 Start **Section 4: GetX State Management (Rx + Obs + GetBuilder)**
+6. Continue through each section until **Flixify is complete**
 
 ---
 
-*Last Updated: [Will be updated as we progress]*
+*Last Updated: June 27, 2026 — Sections 0, 1, 2, and 3 Complete. Ready for Section 4.*
+

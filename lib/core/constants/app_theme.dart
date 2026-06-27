@@ -41,6 +41,12 @@ class AppTheme {
     color: lightGrey,
   );
 
+  static const TextStyle actionButton = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.bold,
+    color: AppTheme.accentColor
+  );
+
   // --- Theme Data ---
   static ThemeData get darkTheme {
     return ThemeData(
