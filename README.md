@@ -3,7 +3,7 @@
 > A Netflix-style streaming app built with **Flutter**, **GetX**, and **Firebase**, designed as a comprehensive learning experience for clean architecture, advanced UI patterns, and reactive state management.
 
 <p align="center">
-  <img src="assets_readme/logo_placeholder.png" alt="Flixify Logo" width="200"/>
+  <img src="assets/preview/Screenshot_20260629_004409.png" alt="Flixify Logo" width="200"/>
 </p>
 
 <p align="center">
@@ -123,12 +123,9 @@ This project is structured as a step-by-step learning experience.
 
 ## 📸 Screenshots
 
-*(To be added as the UI is built in Section 3 and 5)*
-
 | Home Screen | Details | Player |
 |-------------|---------|--------|
-| ![Home](screenshots/home_placeholder.png) | ![Details](screenshots/details_placeholder.png) | hikers.png) | ![Player](screenshots/player_placeholder.png) |
-
+| ![Home](assets/preview/Screenshot_20260629_004409.png) | ![Details](assets/preview/Screenshot_20260629_004544.png) | ![Player](assets/preview/Screenshot_20260629_004601.png) |
 ))| | | |
 
 ## 🤝 Contributing
