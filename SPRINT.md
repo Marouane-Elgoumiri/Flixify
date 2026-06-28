@@ -87,16 +87,139 @@
 - `Row` & `Column` alignment and `MainAxis` / `CrossAxis`.
 - `Flexible` vs `Expanded`: the difference that makes or breaks a layout.
 
+## 🧠 Visual Cheat-Sheet (GetX + Flexible vs Expanded)
+
+> Read this BEFORE Section 4. These diagrams live here forever — re-read whenever you forget.
+
+### 1. GetX State Management (3 styles)
+
+```mermaid
+flowchart TB
+    subgraph Controller["GetxController (lives outside widgets)"]
+        COUNTER_Rx["counter = 0.obs<br/>(reactive)"]
+        COUNTER_PLAIN["counter = 0<br/>(plain, needs update)"]
+    end
+
+    subgraph Widget3Styles["How the UI binds to it"]
+        OBX["Obx(() => Text(...))"]
+        GB["GetBuilder(init: ctrl, builder: ...)<br/>ctrl.update()"]
+        GX["GetX(init: ctrl, builder: ...)"]
+    end
+
+    COUNTER_Rx -.automatic rebuild.-> OBX
+    COUNTER_PLAIN -.manual.-> GB
+    COUNTER_Rx -.automatic.-> GX
+
+    classDef reactive fill:#fdd,stroke:#c33,color:#000
+    classDef manual fill:#ddf,stroke:#33c,color:#000
+    class COUNTER_Rx,OBX,GX reactive
+    class COUNTER_PLAIN,GB manual
+```
+
+**ASCII mental model (most important):**
+
+```
+┌──────────────────────────────────────────────┐
+│  Your widget tree                            │
+│                                              │
+│  ┌─── Obx(() => ...) ──────────────────┐     │
+│  │  Listens to: counter, _movies, etc.  │     │
+│  │  Rebuilds ONLY when these change.    │     │
+│  └──────────────────────────────────────┘     │
+│                                              │
+│  ┌─── GetBuilder<...> ──────────────────┐    │
+│  │  REBUILD only when you call           │    │
+│  │  controller.update() — like setState │    │
+│  └──────────────────────────────────────┘     │
+│                                              │
+│  GetX<...> = Obx + Get.find combined         │
+└──────────────────────────────────────────────┘
+```
+
+**Rule of thumb:**
+- `Obx` / `GetX` (reactive) → **90% of the time** — auto-rebuilds, no manual `update()`.
+- `GetBuilder` (manual) → when you want **total control**, e.g., one-shot rebuilds after an expensive calculation.
+
+---
+
+### 2. Flexible vs Expanded
+
+```mermaid
+flowchart LR
+    subgraph Row["Row(width: 350)"]
+        A["Container A"]
+        SB["SizedBox<br/>(width: 8)"]
+        B["Container B"]
+    end
+
+    subgraph Style1["Style 1: Expanded"]
+        Aexp["Expanded<br/>(greedy)"]
+    end
+
+    subgraph Style2["Style 2: Flexible"]
+        Bflex["Flexible<br/>(polite)"]
+    end
+
+    Aexp -.takes ~228px.- Row
+    Bflex -.takes ~114px max.- Row
+
+    note["Key insight:<br/>Expanded = Flexible(fit: FlexFit.tight)"]
+```
+
+**ASCII layouts side-by-side:**
+
+```
+Row(width: 350) with [ Expanded ]           Row(width: 350) with [ Flexible ]
+┌────────────────────────────────┐          ┌────────────────────────────────┐
+│           hungry               │          │           polite               │
+│  Expanded takes ALL leftover   │          │  Flexible asks for preferred   │
+│                                │          │  size, takes leftover          │
+│                                │          │                                │
+├──────────────────┬8┬──────────┤          ├──┬8┬──────────────────────────┤
+│  Expanded(~228)  │.│ Box 100  │          │  │  │  Flexible(asks, gets ~114) │
+└──────────────────┴─┴──────────┘          │6 │  │                          │
+                                           │4 │  │                          │
+                                           └─┴──┴──────────────────────────┘
+```
+
+**The single rule that explains both:**
+```
+Expanded = Flexible(flex: 1, fit: FlexFit.tight)
+
+fit: FlexFit.tight   → MUST fill leftover space
+fit: FlexFit.loose   → MAY use preferred size, OR leftover
+```
+
+**`flex` is just a weight** when multiple `.flex` siblings share leftover:
+- `Expanded(flex: 2)` + `Expanded(flex: 1)` → 2/3 and 1/3 of leftover.
+- Without `flex`, both default to `1` → equal split.
+
+**Try it in your app:** Scroll to the bottom of the Home screen — there's a live demo with red (`Expanded`) and blue (`Flexible`) blocks plus the math written out.
+
+
 ---
 
 ### Section 4: GetX State Management (Rx + Obs + GetBuilder)
-**Status**: ⏳ NOT STARTED
-**Goal**: Replace manual state management with powerful reactive streams.
+**Status**: ✅ COMPLETED (Round 2 — Watchlist Challenge)
+**Goal**: Replace manual state management with reactive streams.
 **Deliverables**:
-- [ ] GetX setup with `GetMaterialApp`
-- [ ] Controllers for Home, Search, Watchlist screens
-- [ ] Reactive state with `RxList<T>`, `RxBool`, `RxString`
-- [ ] `Obx`, `GetBuilder`, `GetX` in action
+- [x] GetX setup with `GetMaterialApp`
+- [x] `HomeController` (GetxController) for the Home screen, GetBuilder-friendly
+- [x] `GetBuilder<HomeController>` on the Netflix Home page
+- [x] `SearchController` (user challenge) with `GetBuilder` and pattern-matched states
+- [x] Reactive state with `RxList<T>`, `RxBool`, `RxInt`, `RxString`, `Rx<T>`
+- [x] `Obx`, `GetBuilder`, `GetX` in action (live `Obx` demo on Home page)
+- [x] `WatchlistController` (Round 2) — `RxList<Movie>` reactive watchlist
+- [x] `WatchlistPage` (Round 2) — `Obx`-driven count + grid + empty state
+- [x] Watchlist heart in `HeroBanner` (Obx rebuilds only the icon, not the rest)
+- [ ] **Round 2 User Challenge pending** — `toggleWatchlist()` implementation
+
+**Step 5 (User Challenge) Highlights**:
+- User implemented `runSearch()` perfectly:
+  - Empty-query reset with `.trim()`
+  - State-flow: `idle → searching → found / empty / error`
+  - Conditional status assignment: `movies.isEmpty ? SearchStatus.empty : SearchStatus.found`
+  - Manual `update()` calls for `GetBuilder` semantics
 
 **Teaching Focus**:
 - How reactive programming works (Observer pattern).
@@ -121,6 +244,7 @@
 
 ---
 
+
 ### Section 6: Vidking WebView & JS Bridge
 **Status**: ⏳ NOT STARTED
 **Goal**: Integrate the external video player with full control.
@@ -144,7 +268,7 @@
 | 1. Declarative | ✅ COMPLETED | June 26, 2026 | June 26, 2026 | 3 counter approaches + MovieCard built |
 | 2. Clean Arch | ✅ COMPLETED | June 26, 2026 | June 26, 2026 | Domain/Data layers, Repository, UseCases, DI with GetX |
 | 3. UI Principles | ✅ COMPLETED | June 27, 2026 | June 27, 2026 | Hero banner, horizontal rows, bottom nav, 7-number system |
-| 4. GetX State | ⏳ NOT STARTED | | | | |
+| 4. GetX State | ✅ COMPLETED (R2) | June 28, 2026 | June 28, 2026 | HomeController + SearchController + WatchlistController, GetBuilder + Obx demos | |
 | 5. Firebase Auth | ⏳ NOT STARTED | | | | |
 | 6. WebView | ⏳ NOT STARTED | | | | |
 
@@ -166,10 +290,11 @@ For each section to be considered complete:
 2. ✅ Complete **Section 1: Declarative vs Imperative** ✅
 3. ✅ Complete **Section 2: Clean Code Architecture** ✅
 4. ✅ Complete **Section 3: UI Principles** ✅
-5. 🚀 Start **Section 4: GetX State Management (Rx + Obs + GetBuilder)**
-6. Continue through each section until **Flixify is complete**
+5. ✅ Complete **Section 4: GetX State Management** ✅
+6. 🚀 Start **Section 5: Firebase Auth & Firestore**
+7. Continue through Section 6 (Vidking WebView & JS Bridge)
 
 ---
 
-*Last Updated: June 27, 2026 — Sections 0, 1, 2, and 3 Complete. Ready for Section 4.*
+*Last Updated: June 28, 2026 — Sections 0-4 Complete. Ready for Section 5.*
 

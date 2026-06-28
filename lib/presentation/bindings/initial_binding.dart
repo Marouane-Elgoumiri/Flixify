@@ -2,13 +2,17 @@ import 'package:dio/dio.dart';
 import 'package:get/get.dart';
 
 import 'package:my_app/core/constants/api_constants.dart';
+import 'package:my_app/core/config/tmdb_config.dart';
 import 'package:my_app/data/datasources/tmdb_remote_datasource.dart';
 import 'package:my_app/data/repositories/movie_repository_impl.dart';
 import 'package:my_app/domain/repositories/movie_repository.dart';
 import 'package:my_app/domain/usecases/get_trending_movies.dart';
+import 'package:my_app/domain/usecases/search_movies.dart';
+import 'package:my_app/presentation/controllers/home_controller.dart';
+import 'package:my_app/presentation/controllers/search_controller.dart';
+import 'package:my_app/presentation/controllers/watchlist_controller.dart';
 
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
-import 'package:my_app/core/config/tmdb_config.dart';
 /// Sets up all dependencies for the application using GetX.
 ///
 /// This is where we wire together the layers of Clean Architecture:
@@ -69,5 +73,26 @@ class InitialBinding extends Bindings {
 
     // Register the use case. GetX injects the repository.
     Get.put(GetTrendingMoviesUseCase(repository: Get.find<MovieRepository>()));
+
+    // Register the search use case. Same repository, different verb.
+    Get.put(SearchMoviesUseCase(repository: Get.find<MovieRepository>()));
+
+    // --- Presentation Layer ---
+    // Register the HomeController. We use `lazyPut` so the controller
+    // is only created when first accessed (saves startup time and
+    // avoids triggering `onInit` if the user never visits the Home screen).
+    Get.lazyPut(
+      () => HomeController(useCase: Get.find<GetTrendingMoviesUseCase>()),
+    );
+
+    // The SearchController is also lazy for the same reason.
+    Get.lazyPut(
+      () => SearchController(useCase: Get.find<SearchMoviesUseCase>()),
+    );
+
+    // Watchlist: lives in memory for now. No use case yet — the controller
+    // holds the state directly. In Section 6 we will add a use case that
+    // syncs this list to Firestore.
+    Get.lazyPut(() => WatchlistController());
   }
 }

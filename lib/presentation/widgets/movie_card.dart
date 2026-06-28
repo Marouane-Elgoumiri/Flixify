@@ -1,23 +1,26 @@
 import 'package:flutter/material.dart';
+// ignore: unused_import
+import 'package:get/get.dart';
 
 import 'package:my_app/core/constants/app_theme.dart';
 import 'package:my_app/core/constants/app_dimensions.dart';
 import 'package:my_app/domain/entities/movie.dart';
+// ignore: unused_import
+import 'package:my_app/presentation/controllers/watchlist_controller.dart';
+import 'package:my_app/presentation/widgets/poster_image.dart';
 
-/// A reusable, declarative Movie Card widget that takes a [Movie] entity.
+/// `MovieCard` — wide card with poster + title + rating + button.
 ///
-/// This widget receives its data through a typed [Movie] object — NOT a raw map.
-/// This is a key principle of Clean Architecture: the UI works with entities,
-/// not utility types like `Map<String, dynamic>`.
+/// ROUND 2b — watchlist heart on every movie.
 ///
-/// A truly declarative widget is a PURE FUNCTION of its inputs.
-/// Given the same movie data, it always renders the same UI.
-///
-/// Benefits of typed entities:
-/// 1. Compile-time error detection (typos, missing fields)
-/// 2. IDE autocomplete support
-/// 3. Refactor-safe (rename a field, the compiler guides you)
-/// 4. Testable (mock the entity, no need to build fake maps)
+/// What this card teaches (Step B):
+/// 1. **Replacing an imperative snackbar button** with a reactive heart.
+///    Same pattern as `HeroBanner` and `MiniMovieCard`, just in a Row.
+/// 2. **Trade-offs**: We're dropping the wide "Watchlist" button
+///    (text) to keep the card visually clean. The heart icon next to
+///    the rating is the modern Netflix pattern.
+/// 3. **Reusability**: Once you've implemented this, you can drop
+///    `MovieCard` anywhere — the heart always works.
 class MovieCard extends StatelessWidget {
   const MovieCard({
     super.key,
@@ -27,8 +30,7 @@ class MovieCard extends StatelessWidget {
   /// The movie entity to display.
   final Movie movie;
 
-  /// Optional callback when the watchlist button is tapped.
-  /// When null, a snackbar feedback is shown.
+  // ignore: unused_field
   final VoidCallback? onWatchlistTap = null;
 
   @override
@@ -36,7 +38,14 @@ class MovieCard extends StatelessWidget {
     final title = movie.title;
     final rating = movie.voteAverage;
     final id = movie.id;
-    final posterUrl = movie.fullPosterUrl;
+
+    // ──────────────────────────────────────────────────────────────
+    // TODO ▢ STEP B.1  Grab the watchlist controller once here,
+    //      same trick as in `MiniMovieCard`:
+    //
+    //        final watchlist = Get.find<WatchlistController>();
+    //
+    // ──────────────────────────────────────────────────────────────
 
     return Card(
       key: ValueKey(id),
@@ -46,26 +55,19 @@ class MovieCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Poster Section - maintains the correct TMDb poster proportions (2:3)
+          // Poster Section — STATIC, no reactive behavior needed here.
           AspectRatio(
             aspectRatio: AppDimensions.movieCardAspectRatio,
-            child: Container(
-              color: AppTheme.secondaryBlack,
-              alignment: Alignment.center,
-              child: posterUrl != null
-                  // We will show a real image in Section 4 with CachedNetworkImage.
-                  // For now, an icon placeholder hints at the future implementation.
-                  ? const Icon(Icons.image, color: AppTheme.lightGrey)
-                  : const Icon(Icons.image_not_supported,
-                      color: AppTheme.lightGrey),
-            ),
+            child: PosterImage(url: movie.fullPosterUrl),
           ),
-          // Info Section
+
+          // ─── Info Section ──────────────────────────────────────
           Padding(
             padding: AppDimensions.paddingCard,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Title
                 Text(
                   title,
                   style: AppTheme.movieCardTitle,
@@ -73,33 +75,58 @@ class MovieCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: AppDimensions.sm),
+
+                // ★ 8.5   ♥  ← the row we are going to modify
                 Row(
                   children: [
-                    const Icon(
-                      Icons.star,
-                      color: Colors.amber,
-                      size: AppDimensions.iconSm,
-                    ),
+                    const Icon(Icons.star,
+                        color: Colors.amber,
+                        size: AppDimensions.iconSm),
                     const SizedBox(width: AppDimensions.sm),
-                    Text(
-                      rating.toStringAsFixed(1),
-                      style: AppTheme.bodyText.copyWith(fontSize: 12),
+                    Expanded(
+                      // ──────────────────────────────────────────────────
+                      // TODO ▢ STEP B.2  Replace the existing `Text(rating...)`
+                      //      with a Row that contains:
+                      //         1. The rating text (existing logic).
+                      //         2. A Spacer().
+                      //         3. An `Obx(() => ...)` with a heart button.
+                      //
+                      //   The heart inside the Obx should:
+                      //     • Watch watchlist.containsId(movie.id)
+                      //     • Icons.favorite_rounded when in list,
+                      //       Icons.favorite_border_rounded otherwise
+                      //     • AppTheme.accentColor when in list,
+                      //       AppTheme.primaryText otherwise
+                      //     • Tap → watchlist.toggleWatchlist(movie)
+                      //
+                      //   You can use a plain `IconButton` (no background)
+                      //   because the Card already has a dark background.
+                      //
+                      //   Tip: keep the IconButton tight — no padding,
+                      //   minimumSize: Size(28, 28), iconSize: 18.
+                      //
+                      //   ──────────────────────────────────────────────────
+                      child: Text(
+                        rating.toStringAsFixed(1),
+                        style: AppTheme.bodyText.copyWith(fontSize: 12),
+                      ),
                     ),
                   ],
                 ),
+
+                // ──────────────────────────────────────────────────────
+                // TODO ▢ STEP B.3  ⚠️  DELETE the entire `ElevatedButton.icon`
+                //      block below. We're replacing it with a heart on the
+                //      rating row above. Once you implement STEP B.2, the
+                //      button below becomes redundant.
+                //
+                //   Delete this entire `ElevatedButton.icon(` ... `)` —
+                //   including the comment header above the button.
+                // ──────────────────────────────────────────────────────
                 const SizedBox(height: AppDimensions.sm),
                 ElevatedButton.icon(
                   onPressed: () {
-                    if (onWatchlistTap != null) {
-                      onWatchlistTap!();
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Added "$title" to watchlist'),
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
-                    }
+                    // Leave this no-op for now — it's about to be removed.
                   },
                   icon: const Icon(Icons.add, size: AppDimensions.iconSm),
                   label: const Text('Watchlist'),

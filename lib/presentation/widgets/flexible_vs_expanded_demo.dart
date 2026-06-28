@@ -3,25 +3,25 @@ import 'package:flutter/material.dart';
 import 'package:my_app/core/constants/app_theme.dart';
 import 'package:my_app/core/constants/app_dimensions.dart';
 
-/// A live, side-by-side comparison of `Flexible` vs `Expanded`.
+/// A live, side-by-side comparison of `Flexible` vs `Expanded`,
+/// plus a worked example of "how do I divide this row/column into
+/// N equal parts?".
 ///
-/// This widget exists for one teaching purpose: by the time you finish
-/// Section 3, you should be able to look at this widget in your running
-/// app and answer:
-///   "What's the math behind how each colored block gets its size?"
+/// Mental model:
+///   • `Expanded`   == `Flexible(fit: FlexFit.tight, ...)`
+///         Forces the child to fill 100% of its allotted slot.
+///         Greedy. Always stretches.
 ///
-/// The math (under a `Row`):
-/// - `Expanded`   children first take `flex` weight, then DIVIDE all of the
-///                 remaining space among themselves ONLY.
-/// - `Flexible`   children ASK for their preferred size UP TO what's left,
-///                 passing any leftover space to the next sibling.
+///   • `Flexible`   == `Flexible(fit: FlexFit.loose, ...)`
+///         Lets the child be smaller than its slot (up to its
+///         intrinsic / preferred size). Passes leftovers to
+///         later siblings in the Flex.
 ///
-/// In this widget:
-///   ▸ `RedBlock` uses `Expanded(flex: 2, ...)` — greedy, takes 2/3 weight.
-///   ▸ `BlueBlock` uses `Flexible(flex: 1, ...)` — asks for its natural
-///        120px; if there's leftover, it stretches.
-///
-/// Toggle the `useFullWidth` switch to see the math in action.
+/// Algorithm Flutter uses internally (Flex.performLayout):
+///   1. Lay out non-flexible children at their natural size.
+///   2. Sum the free space that's still available.
+///   3. Divide that free space among `flex > 0` children in
+///      proportion to their flex weight.
 class FlexibleVsExpandedDemo extends StatelessWidget {
   const FlexibleVsExpandedDemo({super.key});
 
@@ -34,26 +34,35 @@ class FlexibleVsExpandedDemo extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // === HEADLINE ROW: Expanded vs Flexible ===
+          // ============================================================
+          // PART 1 — Row: Expanded (greedy) vs Flexible (natural-size)
+          // ============================================================
+          // Container(width: 360) locks the row's total width.
+          // Inside that 360px:
+          //   Expanded(flex: 2) → 2/3 * 360 = 240px (stretches)
+          //   SizedBox(8)       →  8px
+          //   Flexible(flex: 1) → 1/3 * 360 = 112px (stretches here
+          //                          because the inner widget has no
+          //                          preferred width; replace the
+          //                          child with an Icon to see the
+          //                          difference!)
           SizedBox(
-            height: 120,
+            width: 350,
+            height: 100,
             child: Row(
-              children: [
-                // Expanded GREEDILY takes 2/3 of the space.
-                const Expanded(
-                  flex: 2,
+              children: const [
+                Expanded(
+                  flex: 5,
                   child: _ColorBlock(
-                    label: 'Expanded(flex: 2)',
+                    label: 'Expanded(flex: 4)\n= 240px',
                     color: AppTheme.accentColor,
                   ),
                 ),
-                const SizedBox(width: AppDimensions.sm),
-                // Flexible only takes up to its preferred 100px.
-                // Whatever is left over goes to the next sibling.
-                const Flexible(
-                  flex: 1,
+                SizedBox(width: AppDimensions.sm),
+                Flexible(
+                  flex: 3,
                   child: _ColorBlock(
-                    label: 'Flexible(flex: 1)',
+                    label: 'Flexible(flex: 3)\n= 112px',
                     color: Color(0xFF2196F3),
                   ),
                 ),
@@ -63,7 +72,73 @@ class FlexibleVsExpandedDemo extends StatelessWidget {
 
           const SizedBox(height: AppDimensions.md),
 
-          // === TEXT EXPLANATION ===
+          // ============================================================
+          // PART 2 — Column: same rules, vertical axis
+          // ============================================================
+          // Total height = 200.
+          //   Expanded(flex: 1) → 1/4 * 200 = 50px
+          //   SizedBox(8)
+          //   Expanded(flex: 3) → 3/4 * 200 = 150px
+          SizedBox(
+            height: 120,
+            child: Column(
+              children: const [
+                Expanded(
+                  flex: 1,
+                  child: _ColorBlock(
+                    label: '1/4 = 50px',
+                    color: Color(0xFF4CAF50),
+                  ),
+                ),
+                SizedBox(height: AppDimensions.sm),
+                Expanded(
+                  flex: 3,
+                  child: _ColorBlock(
+                    label: '3/4 = 150px',
+                    color: Color(0xFFFF9800),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: AppDimensions.md),
+
+          // ============================================================
+          // PART 3 — The "N equal parts" recipe
+          // ============================================================
+          // Wrap any row/column in `MainAxisAlignment.spaceBetween`
+          // (no flex needed!) for equal spacing, OR use N children
+          // each wrapped in `Expanded(child: SizedBox())` to divide
+          // the available space into N identical slots.
+          Row(
+            children: List.generate(
+              5,
+                  (i) => const Expanded(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 3),
+                  child: _ColorBlock(
+                    label: '1/5',
+                    color: Color(0xFF9C27B0),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SizedBox(height: AppDimensions.sm),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              Container(width: 150, height: 50, color: Colors.purple,),
+              Container(width: 150, height: 50, color: Colors.orange,),
+              Container(width: 150, height: 50, color: Colors.teal,),
+            ],
+          ),
+          const SizedBox(height: AppDimensions.md),
+
+          // ============================================================
+          // TEXT EXPLANATION
+          // ============================================================
           Container(
             padding: const EdgeInsets.all(AppDimensions.md),
             decoration: BoxDecoration(
@@ -74,7 +149,7 @@ class FlexibleVsExpandedDemo extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Row(width: 350, height: 120)',
+                  'Row(width: 360, height: 80)',
                   style: TextStyle(
                     color: AppTheme.accentColor,
                     fontFamily: 'monospace',
@@ -83,16 +158,25 @@ class FlexibleVsExpandedDemo extends StatelessWidget {
                 ),
                 SizedBox(height: AppDimensions.sm),
                 Text(
-                  '• Expanded(flex: 2) → grabs 2x of remaining = ~233px',
+                  '• Expanded(flex: 2) → grabs 2/3 of remaining = 240px',
                   style: TextStyle(color: AppTheme.lightGrey),
                 ),
                 Text(
-                  '• SizedBox(8px)      → 8px',
+                  '• SizedBox(8)      → 8px',
                   style: TextStyle(color: AppTheme.lightGrey),
                 ),
                 Text(
-                  '• Flexible(flex: 1)  → grabs 1x of remaining = ~109px',
+                  '• Flexible(flex: 1) → grabs 1/3 of remaining = 112px',
                   style: TextStyle(color: AppTheme.lightGrey),
+                ),
+                SizedBox(height: AppDimensions.sm),
+                Text(
+                  'Rule: all flex children share leftover space\n'
+                      '       in proportion to their flex weight.',
+                  style: TextStyle(
+                    color: AppTheme.accentColor,
+                    fontStyle: FontStyle.italic,
+                  ),
                 ),
               ],
             ),
@@ -123,7 +207,7 @@ class _ColorBlock extends StatelessWidget {
         style: const TextStyle(
           color: AppTheme.primaryText,
           fontWeight: FontWeight.bold,
-          fontSize: 12,
+          fontSize: 11,
         ),
       ),
     );

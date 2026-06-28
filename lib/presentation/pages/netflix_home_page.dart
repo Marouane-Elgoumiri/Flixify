@@ -3,52 +3,36 @@ import 'package:get/get.dart';
 
 import 'package:my_app/core/constants/app_theme.dart';
 import 'package:my_app/core/constants/app_dimensions.dart';
-import 'package:my_app/core/errors/failures.dart';
-import 'package:my_app/core/usecases/usecase.dart';
-import 'package:my_app/core/utils/result.dart';
 import 'package:my_app/domain/entities/movie.dart';
-import 'package:my_app/domain/usecases/get_trending_movies.dart';
+import 'package:my_app/presentation/controllers/home_controller.dart';
 import 'package:my_app/presentation/widgets/category_row.dart';
-import 'package:my_app/presentation/widgets/flexible_vs_expanded_demo.dart';
 import 'package:my_app/presentation/widgets/hero_banner.dart';
+import 'package:my_app/presentation/widgets/obx_demo.dart';
 
-/// The Netflix-style Home Page.
+/// The Netflix-style Home Page — now powered by `GetBuilder`.
 ///
-/// What this page teaches (Section 3):
+/// What this section teaches (Section 4):
 ///
-/// 1. **Hero Banner at the top** — a `Stack` of three layers:
-///    poster -> gradient overlay -> title + CTA buttons.
-/// 2. **Horizontal category rows** — `ListView(scrollDirection: Axis.horizontal)`
-///    renders 5-7 movies in a strip, just like Netflix.
-/// 3. **The 7-number system** — every spacing/size value comes from
-///    `AppDimensions.sm/md/lg/xl/...`. No magic numbers.
-/// 4. **`Flexible` vs `Expanded`** — the body uses `Flexible` for the
-///    scroller and `Expanded`-friendly patterns below.
-/// 5. **Bottom Navigation Bar** — persistent navigation across the app.
+/// 1. **`GetBuilder<T>`** — wraps the body of the page. Rebuilds ONLY when
+///    we call `controller.update()` inside the controller.
+/// 2. **No more `StatefulWidget`** — the page is now a `StatelessWidget`
+///    because all state lives in [HomeController].
+/// 3. **No more `FutureBuilder`** — the controller runs the fetch on `onInit()`
+///    and exposes plain Dart fields (`trending`, `status`, `errorMessage`).
+/// 4. **`Get.find<HomeController>()`** — used here WITHOUT a type cast.
+///    Because we registered the controller globally in InitialBinding,
+///    any widget can grab it.
 ///
-/// All of this is built on the Clean Architecture layers from Section 2:
-/// the UI only touches `UseCase` and `Movie` entity; no Dio, no JSON.
-class NetflixHomePage extends StatefulWidget {
+/// (We deliberately do NOT use `Obx` or `.obs` here — those come in the bonus
+/// step. Plain `GetBuilder` is the manual, explicit form.)
+class NetflixHomePage extends StatelessWidget {
   const NetflixHomePage({super.key});
 
   @override
-  State<NetflixHomePage> createState() => _NetflixHomePageState();
-}
-
-class _NetflixHomePageState extends State<NetflixHomePage> {
-  final GetTrendingMoviesUseCase _useCase =
-      Get.find<GetTrendingMoviesUseCase>();
-
-  late Future<Result<List<Movie>, Failure>> _fetchFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchFuture = _useCase.call(const NoParams());
-  }
-
-  @override
   Widget build(BuildContext context) {
+    // GetX dependency lookup: no constructor, no provider chain.
+    final HomeController controller = Get.find<HomeController>();
+
     return Scaffold(
       backgroundColor: AppTheme.primaryBlack,
       appBar: AppBar(
@@ -63,67 +47,94 @@ class _NetflixHomePageState extends State<NetflixHomePage> {
             letterSpacing: 1.2,
           ),
         ),
+        actions: [
+          // Refresh icon lets the user re-fetch on demand.
+          IconButton(
+            tooltip: 'Refresh',
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: controller.loadTrending,
+          ),
+        ],
       ),
       extendBodyBehindAppBar: true,
-      body: FutureBuilder<Result<List<Movie>, Failure>>(
-        future: _fetchFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+      body: GetBuilder<HomeController>(
+        builder: (controller) {
+          // ── STATE 1: loading ──────────────────────────────────
+          if (controller.status == HomeStatus.loading) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (!snapshot.hasData) {
-            return const Center(child: Text('Something went wrong.'));
+
+          // ── STATE 2: error ────────────────────────────────────
+          if (controller.status == HomeStatus.error) {
+            return _ErrorView(
+              message: controller.errorMessage ?? 'Unknown error',
+              onRetry: controller.loadTrending,
+            );
           }
 
-          return snapshot.data!.when(
-            success: (List<Movie> movies) {
-              if (movies.isEmpty) {
-                return const Center(
-                  child: Text('No trending movies right now.'),
-                );
-              }
-              // First movie becomes the hero; rest become category rows.
-              final hero = movies.first;
-              final rest = movies.skip(1).toList();
-              return _NetflixBody(hero: hero, allMovies: rest);
+          // ── STATE 3: loaded (but possibly empty) ─────────────
+          if (controller.trending.isEmpty) {
+            return const Center(
+              child: Text(
+                'No trending movies right now.',
+                style: TextStyle(color: AppTheme.lightGrey),
+              ),
+            );
+          }
+
+          // ── STATE 4: success ──────────────────────────────────
+          final hero = controller.heroMovie!;
+          final rest = controller.trending.skip(1).toList();
+          return _NetflixBody(
+            hero: hero,
+            allMovies: rest,
+            onNavTap: (i) {
+              if (i == 1) Get.toNamed('/search');
             },
-            error: (Failure failure) =>
-                Center(child: Text('Error: ${failure.message}')),
           );
         },
       ),
-      bottomNavigationBar: const _BottomNavBar(),
+      bottomNavigationBar: _BottomNavBar(onTap: (index) {
+        // Index 0 = Home (we're here). Index 1 = Search → /search.
+        // Index 2 = My List → /watchlist. Index 3 = Profile → no-op yet.
+        switch (index) {
+          case 1:
+            Get.toNamed('/search');
+            break;
+          case 2:
+            Get.toNamed('/watchlist');
+            break;
+          case 3:
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Profile — coming in Section 5')),
+            );
+            break;
+        }
+      }),
     );
   }
 }
 
-/// The scrollable body of the Netflix home screen.
-///
-/// Stack layout (top → bottom):
-///   ▸ Hero Banner   ← top, fixed size via AspectRatio
-///   ▸ Trending Row  ← horizontal scroller
-///   ▸ Top Rated Row ← horizontal scroller
-///   ▸ Continue Watching Row
-///
-/// We use [CustomScrollView] + [SliverList] so each row can occupy its
-/// own sliver — the canonical pattern for staggered sections.
+/// The scrollable body — same as before, just stateless now.
 class _NetflixBody extends StatelessWidget {
-  const _NetflixBody({required this.hero, required this.allMovies});
+  const _NetflixBody({
+    required this.hero,
+    required this.allMovies,
+    required this.onNavTap,
+  });
 
   final Movie hero;
   final List<Movie> allMovies;
+  final void Function(int index) onNavTap;
 
   @override
   Widget build(BuildContext context) {
-    // Slice the rest into 3 mock categories (since we only have one
-    // trending list so far). In real life these would be 3 separate calls.
     final trending = allMovies.take(8).toList();
     final topRated = allMovies.skip(2).take(8).toList();
     final continueWatching = allMovies.skip(5).take(8).toList();
 
     return CustomScrollView(
       slivers: [
-        // 1) Hero Banner as a sliver — fixed height via AspectRatio inside
         SliverToBoxAdapter(
           child: HeroBanner(
             movie: hero,
@@ -132,9 +143,7 @@ class _NetflixBody extends StatelessWidget {
             ),
           ),
         ),
-        // 2) Spacer between hero and rows
         const SliverToBoxAdapter(child: SizedBox(height: AppDimensions.md)),
-        // 3) Category rows
         SliverToBoxAdapter(
           child: CategoryRow(title: 'Trending Now', movies: trending),
         ),
@@ -145,35 +154,26 @@ class _NetflixBody extends StatelessWidget {
           child: CategoryRow(
               title: 'Continue Watching', movies: continueWatching),
         ),
-        // 4) Section 3 teaching demo: Flexible vs Expanded
-        const SliverToBoxAdapter(child: FlexibleVsExpandedDemo()),
-        // 5) Bottom padding so the last row isn't hugging the navbar
+        // const SliverToBoxAdapter(child: FlexibleVsExpandedDemo()),
+        const SliverToBoxAdapter(child: ObxDemo()),
         const SliverToBoxAdapter(child: SizedBox(height: AppDimensions.xl)),
       ],
     );
   }
 }
 
-/// Persistent bottom navigation bar.
-///
-/// Wraps `BottomNavigationBar` to give it our dark theme + accent color.
-/// The active tab is stored locally — no global state required yet
-/// (Section 4 will promote this to a GetXController if needed).
-class _BottomNavBar extends StatefulWidget {
-  const _BottomNavBar();
-
-  @override
-  State<_BottomNavBar> createState() => _BottomNavBarState();
-}
-
-class _BottomNavBarState extends State<_BottomNavBar> {
-  int _index = 0;
+/// Bottom nav — pure stateless now, no internal state.
+/// State belongs to a controller when there's business logic,
+/// but a UI-only tab indicator is fine to keep local.
+class _BottomNavBar extends StatelessWidget {
+  const _BottomNavBar({required this.onTap});
+  final void Function(int index) onTap;
 
   @override
   Widget build(BuildContext context) {
     return BottomNavigationBar(
-      currentIndex: _index,
-      onTap: (i) => setState(() => _index = i),
+      currentIndex: 0,
+      onTap: onTap,
       backgroundColor: AppTheme.secondaryBlack,
       selectedItemColor: AppTheme.accentColor,
       unselectedItemColor: AppTheme.lightGrey,
@@ -196,6 +196,46 @@ class _BottomNavBarState extends State<_BottomNavBar> {
           label: 'Profile',
         ),
       ],
+    );
+  }
+}
+
+/// Friendly error view with a retry button.
+/// This is what shows when the API call fails (no network, 401, 500...).
+class _ErrorView extends StatelessWidget {
+  const _ErrorView({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppDimensions.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off_rounded,
+                size: 64, color: AppTheme.lightGrey),
+            const SizedBox(height: AppDimensions.md),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppTheme.primaryText),
+            ),
+            const SizedBox(height: AppDimensions.lg),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.accentColor,
+                foregroundColor: AppTheme.primaryText,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
