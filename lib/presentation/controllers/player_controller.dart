@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:get/get.dart';
 
 import 'package:my_app/core/constants/api_constants.dart';
+import 'package:my_app/core/utils/tmdb_color.dart';
 import 'package:my_app/domain/entities/movie.dart';
 import 'package:my_app/domain/entities/progress_entity.dart';
 import 'package:my_app/domain/repositories/user_data_repository.dart';
@@ -13,9 +14,7 @@ import 'package:my_app/domain/repositories/user_data_repository.dart';
 ///   • `pause` and `ended` always save immediately.
 enum PlayerEventType { timeupdate, play, pause, ended, seeked, unknown }
 
-/// Possible [PlayerEventType]s recognized by Vidking.
-/// The iframe dispatches a string like:
-///   `{"event":"pause","currentTime":120.5,"duration":7200,"id":"299534","mediaType":"movie"}`
+/// Controllers the Vidsync iframe + JS Bridge.
 class PlayerController extends GetxController {
   PlayerController({required this.userDataRepo});
 
@@ -24,10 +23,10 @@ class PlayerController extends GetxController {
 
   // ─── State ─────────────────────────────────────────
   /// What we're playing right now.
-  /// Set by [attachMovie] when entering [PlayerPage].
   final Rxn<Movie> movie = Rxn<Movie>();
 
-  /// Absolute URL used by WebView. Updates when movie changes.
+  /// Absolute URL used by WebView. Already includes ?autoPlay=true,
+  /// optional `?startTime=` and `?theme=` params.
   final RxString embedUrl = ''.obs;
 
   /// Once player fires its first event we hide the loader.
@@ -40,10 +39,21 @@ class PlayerController extends GetxController {
   DateTime _lastSavedAt = DateTime.fromMillisecondsSinceEpoch(0);
   static const Duration _saveInterval = Duration(seconds: 30);
 
-  /// Attaches a movie, computes embed URL.
-  void attachMovie(Movie m) {
+  /// Attaches a movie, computes the Vidsync embed URL.
+  ///
+  /// `startFrom` is taken from Firestore (`getLatestProgressFor`) so the
+  /// user resumes where they left off. Set to null to start at 0.
+  void attachMovie(Movie m, {Duration? startFrom, int? startTimeSeconds}) {
     movie.value = m;
-    embedUrl.value = VidkingUrls.movie(m.id);
+    final theme = hexColorForMovieId(m.id);
+    final seconds = startTimeSeconds ?? startFrom?.inSeconds;
+
+    embedUrl.value = VidsyncUrls.movie(
+      m.id,
+      // ignore: unnecessary_null_checks
+      startTime: seconds,
+      theme: theme,
+    );
     isReady.value = false;
     _lastSavedAt = DateTime.fromMillisecondsSinceEpoch(0);
   }
@@ -67,7 +77,7 @@ class PlayerController extends GetxController {
       final decoded = jsonDecode(raw);
       if (decoded is Map<String, dynamic>) data = decoded;
     } catch (_) {
-      // Some Vidking messages might not be JSON; ignore them.
+      // Some messages might not be JSON; ignore them.
       return;
     }
     if (data == null) return;
@@ -138,7 +148,6 @@ class PlayerController extends GetxController {
   }
 
   Future<void> _persist(ProgressEntity progress) async {
-    // Fire-and-forget — we don't block the UI on Firestore.
     unawaited(_saveProgress(progress));
   }
 
@@ -151,7 +160,7 @@ class PlayerController extends GetxController {
     }
   }
 
-  // ─── Coercion helpers ──────────────────────────────────
+  // ─── Coercion helpers ────────────────────────────────
   int? _asInt(dynamic v) {
     if (v is int) return v;
     if (v is num) return v.toInt();

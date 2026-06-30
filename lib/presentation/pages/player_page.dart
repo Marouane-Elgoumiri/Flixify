@@ -3,21 +3,22 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import 'package:my_app/core/constants/api_constants.dart';
+import 'package:my_app/core/utils/tmdb_color.dart';
 import 'package:my_app/domain/entities/movie.dart';
 import 'package:my_app/presentation/controllers/player_controller.dart';
 
-/// Full-screen player page using `webview_flutter` + Vidking.
+/// Full-screen player page using `webview_flutter` + Vidsync.
 ///
 /// Pipeline:
 ///   1. Take `Movie` from `Get.arguments`.
-///   2. Build the Vidking iframe URL (movie OR TV series).
-///   3. The hosted page posts `PLAYER_EVENT` messages.
-///   4. We capture them via `webController.addJavaScriptChannel`.
-///   5. [PlayerController] parses each event and saves progress to Firestore.
-///
-/// Section 6 design choices:
-///   • Hybrid save: every 30 seconds while playing + on pause / ended.
-///   • JS bridge channel name: `PLYR_BRIDGE` (matches the Vidking event API).
+///   2. Build Vidsync URL atomically (sync, with autoPlay=true).
+///   3. WebView loads URL on first build (no async bridging on
+///      initState → no widget rebuild loop).
+///   4. Firestore resume is OPTIONAL: if it returns a saved position,
+///      we wait for the player's `play` event then run JS to seek
+///      the video element to that offset.
+///   5. [PlayerController] saves progress every 30s + on pause/ended.
 class PlayerPage extends StatefulWidget {
   const PlayerPage({super.key});
 
@@ -28,22 +29,32 @@ class PlayerPage extends StatefulWidget {
 class _PlayerPageState extends State<PlayerPage> {
   late final PlayerController controller;
   late final WebViewController webController;
+  late final String _initialUrl;
+
+  /// Saved seek-target from Firestore. Applied as soon as we know the
+  /// DOM has video (which is after the first play event).
+  int? _pendingStartSeconds;
 
   @override
   void initState() {
     super.initState();
-
     controller = Get.find<PlayerController>();
 
     final movie = Get.arguments as Movie;
+
+    // Build the URL atomically — synchronous, no setState inside initState.
+    _initialUrl = VidsyncUrls.movie(
+      movie.id,
+      theme: hexColorForMovieId(movie.id),
+    );
+
     controller.attachMovie(movie);
 
-    // Lock orientation to landscape for cinema experience.
+    // Landscape orientation for cinema experience.
     SystemChrome.setPreferredOrientations(const [
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
-    // Hide the system status bar (fullscreen feel).
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     webController = WebViewController()
@@ -51,21 +62,65 @@ class _PlayerPageState extends State<PlayerPage> {
       ..setBackgroundColor(Colors.black)
       ..addJavaScriptChannel(
         'PLYR_BRIDGE',
-        onMessageReceived: (msg) => controller.onPlayerMessage(msg.message),
+        onMessageReceived: (msg) {
+          // We won't know which event the JS sends for "loaded" vs "play",
+          // so we just forward everything to the controller.
+          controller.onPlayerMessage(msg.message);
+          // Once the player is ready, attempt resume if needed.
+          if (_pendingStartSeconds != null && _pendingStartSeconds! > 0) {
+            _applyResume();
+          }
+        },
       )
-      ..loadRequest(Uri.parse(controller.embedUrl.value));
+      ..loadRequest(Uri.parse(_initialUrl));
+
+    // Kick off async resume lookup.
+    _fetchStartTimeAsync(movie);
+  }
+
+  Future<void> _fetchStartTimeAsync(Movie movie) async {
+    try {
+      final saved = await controller.userDataRepo.getLatestProgressFor(movie.id);
+    final cs = saved?.currentSeconds;
+    final seconds = (cs ?? 0).toInt();
+      if (seconds > 1) {
+        _pendingStartSeconds = seconds;
+      }
+    } catch (_) {
+      // ignore — start at 0 on any failure
+    }
+  }
+
+  /// Inject a tiny JS that seeks the first <video> element to `_pendingStartSeconds`.
+  /// Vidsync's player itself listens to player events. We don't rely on
+  /// a particular JS API — instead we use the standard WebView method
+  /// to call the embedded `<video>`. This works because Vidsync's iframe
+  /// is loaded IN our WebView (not out-of-process).
+  Future<void> _applyResume() async {
+    final seconds = _pendingStartSeconds;
+    if (seconds == null) return;
+    _pendingStartSeconds = null; // only attempt once
+    try {
+      await webController.runJavaScript(
+        '(() => {'
+        '  const v = document.querySelector("video");'
+        '  if (v) {'
+        '    try { v.currentTime = $seconds; } catch(e) {}'
+        '  }'
+        '})();',
+      );
+    } catch (_) {
+      // The player may not have finished loading yet; ignore silently.
+    }
   }
 
   @override
   void dispose() {
-    // Restore portrait mode when leaving.
     SystemChrome.setPreferredOrientations(const [
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
     ]);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    // Reset player state but KEEP the controller instance alive
-    // (it's registered permanent in InitialBinding).
     controller.detachMovie();
     super.dispose();
   }
@@ -97,6 +152,10 @@ class _PlayerPageState extends State<PlayerPage> {
                 );
               }),
             ),
+            // Loader is shown only BEFORE first JS event arrives.
+            // We deliberately do NOT include `embedUrl` here, so the
+            // Obx does not cause reload loops if another widget mutates
+            // the controller's Rx state.
             Obx(() {
               if (controller.isReady.value) {
                 return const SizedBox.shrink();

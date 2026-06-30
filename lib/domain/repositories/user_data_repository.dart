@@ -24,6 +24,10 @@ abstract class UserDataRepository {
   /// Read saved progress for a given mediaId. Null if not started.
   Future<ProgressEntity?> getProgress(int mediaId);
 
+  /// Same as [getProgress] but returns the most-recently-updated row
+  /// across ALL media. Used by the Home "Continue Watching" row.
+  Future<ProgressEntity?> getLatestProgressFor(int mediaId);
+
   /// Read ALL progress rows for the user. Used for "Continue Watching" rows.
   Future<List<ProgressEntity>> getAllProgress();
 

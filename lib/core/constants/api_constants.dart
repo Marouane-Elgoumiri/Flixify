@@ -6,36 +6,76 @@ class ApiConstants {
   static const String tmdbBaseUrl = 'https://api.themoviedb.org/3';
   static const String tmdbImageBaseUrl = 'https://image.tmdb.org/t/p/w500';
 
-  // --- Vidking Provider ---
-  static const String vidkingBaseUrl = 'https://www.vidking.net/embed';
+  // --- Vidsync Provider Base URL ---
+  static const String vidsyncBaseUrl = 'https://vidsync.live/embed';
 
-  // --- API Endpoints ---
+  // --- TMDb API Endpoints ---
   static String getMovieDetails(int movieId) => '/movie/$movieId';
   static String getTvShowDetails(int tvId) => '/tv/$tvId';
-  static String getTrendingMovies([String timeWindow = 'week']) => '/trending/movie/$timeWindow';
+  static String getTrendingMovies([String timeWindow = 'week']) =>
+      '/trending/movie/$timeWindow';
   static String getTopRatedMovies() => '/movie/top_rated';
 
   // --- User Account Endpoints ---
-  static String getRatedMovies(int accountId) => '/account/$accountId/rated/movies';
-
-  // Note: API Key and Access Token should be stored in the .env file.
-  // Do not hardcode them here.
+  static String getRatedMovies(int accountId) =>
+      '/account/$accountId/rated/movies';
 }
 
-  /// Build Vidking embed URLs.
+/// Build Vidsync embed URLs.
+///
+/// Reference (from vidsync.live docs, 2026):
+///   • Movie: `https://vidsync.live/embed/movie/{tmdbId}?autoPlay=true`
+///   • TV:    `https://vidsync.live/embed/tv/{tmdbId}/{season}/{episode}?autoPlay=true`
+///
+/// Optional params:
+///   • `autoPlay`  — boolean, starts playback automatically
+///   • `startTime` — resume playback from N seconds (uses `?startTime=`)
+///   • `theme`     — hex color, e.g. `16A0B5` (no `#` prefix)
+class VidsyncUrls {
+  VidsyncUrls._();
+
+  /// Movie embed URL.
   ///
-  /// Public so the controller can compose embed URLs the same way
-  /// the PlayerPage expects.
-  class VidkingUrls {
-    VidkingUrls._();
-
-    /// `https://www.vidking.net/embed/movie/{tmdbId}`
-    static String movie(int tmdbId) =>
-        '$vidkingBaseUrlOrigin/embed/movie/$tmdbId';
-
-    /// `https://www.vidking.net/embed/tv/{tmdbId}/{season}/{episode}`
-    static String tvShow(int tmdbId, {int season = 1, int episode = 1}) =>
-        '$vidkingBaseUrlOrigin/embed/tv/$tmdbId/$season/$episode';
-
-    static const String vidkingBaseUrlOrigin = 'https://www.vidking.net';
+  /// Returns the standard movie embed URL with all configured query
+  /// params (startTime, autoPlay, theme, etc.). Always `autoPlay=true`
+  /// in our app — the user explicitly tapped "Watch Now".
+  static String movie(
+    int tmdbId, {
+    int? startTime,
+    String? theme,
+  }) {
+    final params = <String, String>{
+      'autoPlay': 'true',
+      if (startTime != null && startTime > 0) 'startTime': '$startTime',
+      if (theme != null) 'theme': theme.replaceAll('#', ''),
+    };
+    return _buildUrl('movie/$tmdbId', params);
   }
+
+  /// TV show embed URL.
+  static String tvShow(
+    int tmdbId, {
+    int season = 1,
+    int episode = 1,
+    int? startTime,
+    String? theme,
+  }) {
+    final params = <String, String>{
+      'autoPlay': 'true',
+      if (startTime != null && startTime > 0) 'startTime': '$startTime',
+      if (theme != null) 'theme': theme.replaceAll('#', ''),
+    };
+    return _buildUrl('tv/$tmdbId/$season/$episode', params);
+  }
+
+  /// Build the URL with query params appended.
+  static String _buildUrl(String path, Map<String, String> params) {
+    final base = '${ApiConstants.vidsyncBaseUrl}/$path';
+    if (params.isEmpty) return base;
+    final qs = params.entries
+        .map((e) =>
+            '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+        .join('&');
+    return '$base?$qs';
+  }
+}
