@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "790443937354",
+    "project_id": "flixify-3dca1",
+    "storage_bucket": "flixify-3dca1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:790443937354:android:1a38942b95a5f3a8d0e0b3",
+        "android_client_info": {
+          "package_name": "com.example.my_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAhsZsRq7xKS1Kby8pRWyO9_wscjO4sIuY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

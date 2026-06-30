@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'package:my_app/core/constants/app_theme.dart';
+import 'package:my_app/core/constants/app_route_names.dart';
 import 'package:my_app/core/constants/app_dimensions.dart';
 import 'package:my_app/domain/entities/movie.dart';
 import 'package:my_app/presentation/controllers/home_controller.dart';
 import 'package:my_app/presentation/widgets/category_row.dart';
+import 'package:my_app/presentation/widgets/continue_watching_row.dart';
 import 'package:my_app/presentation/widgets/hero_banner.dart';
 import 'package:my_app/presentation/widgets/obx_demo.dart';
 
@@ -89,25 +91,22 @@ class NetflixHomePage extends StatelessWidget {
             hero: hero,
             allMovies: rest,
             onNavTap: (i) {
-              if (i == 1) Get.toNamed('/search');
+              if (i == 1) Get.toNamed(AppRoutes.search);
             },
+            onMovieTap: (m) => Get.toNamed('/details', arguments: m),
           );
         },
       ),
       bottomNavigationBar: _BottomNavBar(onTap: (index) {
-        // Index 0 = Home (we're here). Index 1 = Search → /search.
-        // Index 2 = My List → /watchlist. Index 3 = Profile → no-op yet.
         switch (index) {
           case 1:
-            Get.toNamed('/search');
+            Get.toNamed(AppRoutes.search);
             break;
           case 2:
-            Get.toNamed('/watchlist');
+            Get.toNamed(AppRoutes.watchlist);
             break;
           case 3:
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Profile — coming in Section 5')),
-            );
+            Get.toNamed(AppRoutes.profile);
             break;
         }
       }),
@@ -121,40 +120,61 @@ class _NetflixBody extends StatelessWidget {
     required this.hero,
     required this.allMovies,
     required this.onNavTap,
+    required this.onMovieTap,
   });
 
   final Movie hero;
   final List<Movie> allMovies;
   final void Function(int index) onNavTap;
+  final void Function(Movie movie) onMovieTap;
 
   @override
   Widget build(BuildContext context) {
     final trending = allMovies.take(8).toList();
     final topRated = allMovies.skip(2).take(8).toList();
-    final continueWatching = allMovies.skip(5).take(8).toList();
 
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(
           child: HeroBanner(
             movie: hero,
-            onPlayTap: () => ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Play: ${hero.title}')),
-            ),
+            onPlayTap: () => onMovieTap(hero),
           ),
         ),
         const SliverToBoxAdapter(child: SizedBox(height: AppDimensions.md)),
+
+        // Section 6 — Continue Watching (real Firestore data).
+        // Reactive (Obx) — when the user saves progress from the
+        // WebView, this row appears / moves automatically.
         SliverToBoxAdapter(
-          child: CategoryRow(title: 'Trending Now', movies: trending),
+          child: Obx(() {
+            final controller = Get.find<HomeController>();
+            if (controller.isLoadingContinue.value &&
+                controller.continueWatching.isEmpty) {
+              return const SizedBox.shrink();
+            }
+            return ContinueWatchingRow(
+              progressEntries: controller.continueWatching.toList(),
+              moviesById: controller.moviesById,
+              onTap: (m) => onMovieTap(m),
+            );
+          }),
         ),
+
         SliverToBoxAdapter(
-          child: CategoryRow(title: 'Top Rated', movies: topRated),
+          child: CategoryRow(
+            title: 'Trending Now',
+            movies: trending,
+            onItemTap: onMovieTap,
+          ),
         ),
         SliverToBoxAdapter(
           child: CategoryRow(
-              title: 'Continue Watching', movies: continueWatching),
+            title: 'Top Rated',
+            movies: topRated,
+            onItemTap: onMovieTap,
+          ),
         ),
-        // const SliverToBoxAdapter(child: FlexibleVsExpandedDemo()),
         const SliverToBoxAdapter(child: ObxDemo()),
         const SliverToBoxAdapter(child: SizedBox(height: AppDimensions.xl)),
       ],

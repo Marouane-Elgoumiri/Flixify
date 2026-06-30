@@ -1,30 +1,36 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
+import 'package:my_app/firebase_options.dart';
 import 'package:my_app/presentation/app.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// The main entry point of the application.
-/// 
-/// This is the first line of code that runs when the app starts.
-/// 
-/// [WidgetsFlutterBinding.ensureInitialized()] is a crucial line that 
-/// initializes the Flutter framework. It must be called before any 
-/// platform-specific code runs (like Firebase or loading assets).
 ///
-/// We wrap the app in a try-catch block to handle any critical errors 
-/// during startup, such as failing to load the .env file.
+/// Init order (matters!):
+/// 1. Flutter bindings (required before any platform channel call).
+/// 2. `.env` (TMDB API keys).
+/// 3. `Firebase.initializeApp` — without this, every Firebase call
+///    will throw a "no Firebase App has been initialized" error.
 void main() async {
-  // Necessary for async operations before runApp().
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load environment variables from the .env file.
-  // This allows us to keep API keys out of the source code.
+  // Load env vars (TMDB).
   try {
     await dotenv.load(fileName: '.env');
   } catch (e) {
-    // In a real app, you might want to show a user-friendly error.
-    // For now, we just log it.
     debugPrint('Could not load .env file: $e');
+  }
+
+  // Initialize Firebase with the generated options.
+  // `DefaultFirebaseOptions.currentPlatform` points at the right
+  // config for Android/iOS/web based on where we're running.
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e, st) {
+    debugPrint('Firebase.init failed: $e\n$st');
   }
 
   runApp(const MyApp());

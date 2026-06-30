@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import 'package:my_app/core/constants/app_theme.dart';
 import 'package:my_app/core/constants/app_dimensions.dart';
+import 'package:my_app/domain/entities/movie.dart';
 // Flutter's Material library ships its own `SearchController` (used by
 // SearchAnchor/SearchBar). To avoid name collision, we import ours
 // under the prefix `app`:
@@ -89,7 +90,7 @@ class _SearchPageState extends State<SearchPage> {
                     if (controller.results.isEmpty) {
                       return const Center(child: Text('No results.'));
                     }
-                    return _Results(results: controller.results);
+                    return _Results(movies: controller.results);
                 }
               },
             ),
@@ -121,8 +122,8 @@ class _Idle extends StatelessWidget {
 }
 
 class _Results extends StatelessWidget {
-  const _Results({required this.results});
-  final List results;
+  const _Results({required this.movies});
+  final List<Movie> movies;
 
   @override
   Widget build(BuildContext context) {
@@ -133,8 +134,16 @@ class _Results extends StatelessWidget {
         mainAxisSpacing: AppDimensions.sm,
         crossAxisSpacing: AppDimensions.sm,
       ),
-      itemCount: results.length,
-      itemBuilder: (_, i) => MiniMovieCard(movie: results[i]),
+      itemCount: movies.length,
+      itemBuilder: (_, i) {
+        final movie = movies[i];
+        return MiniMovieCard(
+          movie: movie,
+          // Open the same details page as on Home so the user can
+          // continue to play. Mirrors the Netflix-app behavior.
+          onTap: () => Get.toNamed('/details', arguments: movie),
+        );
+      },
     );
   }
 }

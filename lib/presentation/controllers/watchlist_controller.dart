@@ -1,70 +1,82 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 
 import 'package:my_app/domain/entities/movie.dart';
+import 'package:my_app/domain/repositories/user_data_repository.dart';
 
-/// Persists (in-memory for Section 4) the user's watchlist.
+/// Persists the user's watchlist in **Firestore** (per-user collection).
 ///
-/// What this controller does:
-/// 1. Holds a **reactive** list `RxList<Movie>` — any widget reading it
-///    inside an `Obx` rebuilds automatically when it changes.
-/// 2. Exposes [count] and [contains] as reactive derived values.
-/// 3. Provides [toggleWatchlist] which adds/removes a movie.
+/// This controller is now backed by [UserDataRepository]. The
+/// `RxList<Movie>` is initialised from a one-shot read in `onInit`,
+/// then kept in sync with Firestore's real-time stream.
 ///
-/// In a real app this would ALSO sync with Firebase Firestore (Section 5).
-/// For now, state lives only in memory. That keeps the focus on **how**
-/// reactivity works, not on networking.
+/// Migration note (Section 4 R2 -> Section 5):
+///   - Before: held everything in memory (cleared on app restart).
+///   - Now:    syncs to Firestore, so the watchlist survives restarts.
+///
+/// The UI (WatchlistPage, hearts on cards, etc.) is identical because
+/// it only ever reads from the `RxList`.
 class WatchlistController extends GetxController {
-  // ─── Reactive state ───
-  /// The actual list. `RxList` is a special GetX wrapper around `List`
-  /// that auto-notifies listeners when we call `.add()` / `.remove()` /
-  /// `.assignAll()` / `.clear()`.
-  final RxList<Movie> movies = <Movie>[].obs;
+  WatchlistController({required UserDataRepository userData})
+      : _repo = userData;
 
-  /// Total number of items. Not reactive on its own — anyone reading
-  /// `movies.length` inside an `Obx` already gets reactive behavior.
+  final UserDataRepository _repo;
+
+  // ─── Reactive state ─────────────────────────────────
+  final RxList<Movie> movies = <Movie>[].obs;
+  final RxBool isLoading = true.obs;
+
+  StreamSubscription<List<Movie>>? _sub;
+
   int get count => movies.length;
 
-  /// True if this movie is already in the list.
-  /// Note: this is a regular getter (not reactive) — it just queries
-  /// the underlying list. Same reactivity trick applies when read
-  /// from inside an Obx.
   bool contains(Movie m) => movies.any((x) => x.id == m.id);
-
-  /// True if this movie is already in the list — overload by id.
   bool containsId(int id) => movies.any((x) => x.id == id);
 
-  /// ─────────── YOUR CHALLENGE ───────────
-  /// ⚠️ Implement this method.
-  ///
-  /// Goal: if `movie` is already in the list, REMOVE it;
-  ///       if it's NOT in the list, ADD it.
-  ///
-  /// IMPORTANT: because `movies` is an `RxList`, your final state must
-  /// be visible to any `Obx(() => ... movies.length ...)` widget
-  /// automatically — NO need to call `update()` for those readers.
-  ///
-  /// Steps:
-  ///   1. Check if the list already contains a movie with the SAME id
-  ///      (use `containsId` from above).
-  ///   2. If yes: remove it. Hint — react to this with `movies.remove(...)`
-  ///      or `movies.removeWhere(...)`.
-  ///   3. If no:  add it. Hint — `movies.add(movie)`.
-  ///
-  /// The heart button in the HeroBanner taps into this; the WatchlistPage
-  /// shows the live count via `Obx(() => Text('${ctrl.movies.length}'))`.
-  void toggleWatchlist(Movie movie) {
-
-    // TODO 1: use containsId() to decide add vs remove.
-    if(containsId(movie.id)){
-      movies.removeWhere((x) => x.id == movie.id);
-    }else{
-      movies.add(movie);
-    }
-    // TODO 2: react to RxList so listeners auto-rebuild.
-
+  // ─── Lifecycle ───────────────────────────────────────
+  @override
+  void onInit() {
+    super.onInit();
+    _bootstrap();
   }
-  /// Convenience used by the Watchlist page's "Clear" action.
-  void clearAll() {
-    movies.clear();                  // reactive: counts/list rebuild
+
+  Future<void> _bootstrap() async {
+    isLoading.value = true;
+    try {
+      final initial = await _repo.getWatchlist();
+      movies.assignAll(initial);
+    } finally {
+      isLoading.value = false;
+    }
+    // Then subscribe to live changes from Firestore.
+    _sub = _repo.watchWatchlist().listen((latest) {
+      movies.assignAll(latest);
+    });
+  }
+
+  @override
+  void onClose() {
+    _sub?.cancel();
+    super.onClose();
+  }
+
+  // ─── Commands ────────────────────────────────────────
+
+  Future<void> toggleWatchlist(Movie movie) async {
+    if (containsId(movie.id)) {
+      await _repo.removeFromWatchlist(movie.id);
+    } else {
+      await _repo.addToWatchlist(movie);
+    }
+    // The Firestore stream listener will push the new list back to us.
+  }
+
+  Future<void> clearAll() async {
+    // Delete from Firestore one-doc-at-a-time (free version is fine).
+    final snapshot = List<Movie>.from(movies);
+    for (final m in snapshot) {
+      await _repo.removeFromWatchlist(m.id);
+    }
   }
 }

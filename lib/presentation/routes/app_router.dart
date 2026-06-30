@@ -1,41 +1,89 @@
 import 'package:get/get.dart';
 
+import 'package:my_app/core/constants/app_route_names.dart';
+import 'package:my_app/core/middleware/auth_guard.dart';
+import 'package:my_app/presentation/pages/forgot_password_page.dart';
 import 'package:my_app/presentation/pages/home_page_section1.dart';
+import 'package:my_app/presentation/pages/login_page.dart';
+import 'package:my_app/presentation/pages/movie_details_page.dart';
 import 'package:my_app/presentation/pages/movies_page.dart';
 import 'package:my_app/presentation/pages/netflix_home_page.dart';
+import 'package:my_app/presentation/pages/player_page.dart';
+import 'package:my_app/presentation/pages/profile_page.dart';
+import 'package:my_app/presentation/pages/register_page.dart';
 import 'package:my_app/presentation/pages/search_page.dart';
 import 'package:my_app/presentation/pages/watchlist_page.dart';
-import 'package:my_app/presentation/pages/profile_page.dart';
 
-/// Centralizes all route definitions for the application.
-/// Using a named route approach makes navigation type-safe and easy to manage.
-/// With GetX, we define routes in a list of [GetPage] objects.
+/// Centralizes route definitions + their auth posture.
 ///
-/// Benefits of this approach:
-/// 1. No typos in route strings (use [AppRouter.home] instead of "/home").
-/// 2. Easy to pass arguments and handle deep linking.
-/// 3. Clean separation of navigation logic.
+/// Routes guarded by [AuthGuard] redirect to `/login` if the user is
+/// signed-out. Once the user signs in, the redirect-after-login logic
+/// inside [LoginPage] (via `Get.arguments`) sends them back.
 class AppRouter {
-  AppRouter._(); // Private constructor to prevent instantiation
+  AppRouter._();
 
-  static const String home = '/home';
-  static const String netflixHome = '/netflix';
-  static const String section1 = '/section1';
-  static const String search = '/search';
-  static const String watchlist = '/watchlist';
-  static const String profile = '/profile';
+  /// Default landing route. We LAND on the home and let the guard
+  /// bounce us to /login if needed.
+  static String get initialRoute => AppRoutes.home;
 
-  /// Default landing route.
-  static String get initialRoute => netflixHome;
-
-  /// The list of pages used by GetX for navigation.
-  /// Each [GetPage] defines a path and the widget to render.
+  /// ROUTES: only the auth screens are public; everything else is
+  /// guarded so unauthenticated users land on /login.
   static final routes = [
-    GetPage(name: home, page: () => const MoviesPage()),
-    GetPage(name: netflixHome, page: () => const NetflixHomePage()),
-    GetPage(name: section1, page: () => const HomePage()),
-    GetPage(name: search, page: () => const SearchPage()),
-    GetPage(name: watchlist, page: () => const WatchlistPage()),
-    GetPage(name: profile, page: () => const ProfilePage()),
+    GetPage(name: AppRoutes.login, page: () => const LoginPage()),
+    GetPage(
+        name: AppRoutes.register, page: () => const RegisterPage()),
+    GetPage(
+        name: AppRoutes.forgotPassword,
+        page: () => const ForgotPasswordPage()),
+
+    // ─── guarded routes ───
+    GetPage(
+      name: AppRoutes.home,
+      page: () => const NetflixHomePage(),
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.search,
+      page: () => const SearchPage(),
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.watchlist,
+      page: () => const WatchlistPage(),
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: AppRoutes.profile,
+      page: () => const ProfilePage(),
+      middlewares: [AuthGuard()],
+    ),
+
+    // ─── Section 6: details + player ───
+    GetPage(
+      name: '/details',
+      page: () {
+        // Get.arguments carries a Movie instance.
+        final dynamic movie = Get.arguments;
+        return MovieDetailsPage(movie: movie);
+      },
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: '/player',
+      page: () => const PlayerPage(),
+      middlewares: [AuthGuard()],
+    ),
+
+    // ─── legacy/demo routes (also guarded) ───
+    GetPage(
+      name: '/movies',
+      page: () => const MoviesPage(),
+      middlewares: [AuthGuard()],
+    ),
+    GetPage(
+      name: '/section1',
+      page: () => const HomePage(),
+      middlewares: [AuthGuard()],
+    ),
   ];
 }

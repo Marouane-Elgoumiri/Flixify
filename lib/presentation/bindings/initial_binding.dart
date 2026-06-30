@@ -1,34 +1,48 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 
 import 'package:my_app/core/constants/api_constants.dart';
 import 'package:my_app/core/config/tmdb_config.dart';
 import 'package:my_app/data/datasources/tmdb_remote_datasource.dart';
+import 'package:my_app/data/repositories/firebase_auth_repository.dart';
+import 'package:my_app/data/repositories/firestore_user_data_repository.dart';
 import 'package:my_app/data/repositories/movie_repository_impl.dart';
+import 'package:my_app/domain/repositories/auth_repository.dart';
 import 'package:my_app/domain/repositories/movie_repository.dart';
+import 'package:my_app/domain/repositories/user_data_repository.dart';
+import 'package:my_app/domain/usecases/get_continue_watching.dart';
 import 'package:my_app/domain/usecases/get_trending_movies.dart';
+import 'package:my_app/domain/usecases/reset_password.dart';
 import 'package:my_app/domain/usecases/search_movies.dart';
+import 'package:my_app/domain/usecases/sign_in.dart';
+import 'package:my_app/domain/usecases/sign_out.dart';
+import 'package:my_app/domain/usecases/sign_up.dart';
+import 'package:my_app/presentation/controllers/auth_controller.dart';
 import 'package:my_app/presentation/controllers/home_controller.dart';
+import 'package:my_app/presentation/controllers/player_controller.dart';
 import 'package:my_app/presentation/controllers/search_controller.dart';
 import 'package:my_app/presentation/controllers/watchlist_controller.dart';
 
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
-/// Sets up all dependencies for the application using GetX.
+
+/// Bootstraps the entire app:
+/// TMDb (dio + repos + use cases) + Firebase (auth + firestore + repos) +
+/// Section 6 controllers + use cases.
 ///
-/// This is where we wire together the layers of Clean Architecture:
-/// 1. Data Sources (Dio + TmdbRemoteDataSource)
-/// 2. Repositories (MovieRepositoryImpl)
-/// 3. Use Cases (GetTrendingMoviesUseCase)
+/// IMPORTANT: GetX resolves dependencies eagerly inside `Get.put`.
+/// We MUST register every `Get.find(...)` target BEFORE any code that
+/// tries to look it up. The order below is strict:
 ///
-/// GetX's dependency injection makes this easy with Get.put(), Get.lazyPut(),
-/// and Get.find(). These are like a service locator pattern.
-///
-/// TEACHING: We separate dependency CREATION from dependency USAGE.
-/// This file does the creation. Widgets and controllers do the usage.
+///   1. Dio + TMDb raw datasource
+///   2. FirebaseAuth + FirebaseFirestore (raw SDK instances)
+///   3. Repositories (Movie, Auth, UserData) — depend on (1) + (2)
+///   4. Use Cases — depend on (3)
+///   5. Controllers — depend on (3) + (4)
 class InitialBinding extends Bindings {
   @override
   void dependencies() {
-    // ignore: unnecessary_statements
     final prettyLogger = PrettyDioLogger(
       requestHeader: true,
       requestBody: true,
@@ -38,8 +52,7 @@ class InitialBinding extends Bindings {
       compact: true,
     );
 
-    // --- Data Layer ---
-    // Read TMDB credentials from the .env file via TmdbConfig.
+    // ── 1. TMDb low-level (Dio) ─────────────────────────────
     final dio = Dio(BaseOptions(
       baseUrl: ApiConstants.tmdbBaseUrl,
       connectTimeout: const Duration(seconds: 30),
@@ -52,47 +65,88 @@ class InitialBinding extends Bindings {
         'api_key': TmdbConfig.apiKey,
       },
     ));
-
-    // Only add the logger in debug mode
     assert(() {
       dio.interceptors.add(prettyLogger);
       return true;
     }());
-
-    // Register Dio with GetX so we can find it anywhere with Get.find<Dio>()
     Get.put(dio);
 
-    // Register the remote data source. It needs Dio (injected via Get.find).
-    Get.put(TmdbRemoteDataSource(dio: dio));
+    // ── 2. Firebase raw SDK ──────────────────────────────────
+    Get.put<FirebaseAuth>(FirebaseAuth.instance);
+    Get.put<FirebaseFirestore>(FirebaseFirestore.instance);
 
-    // --- Domain Layer (bridged via Repository) ---
-    // Register the repository. GetX automatically injects the data source.
+    // ── 3a. TMDb data-source + repository ───────────────────
+    Get.put<TmdbRemoteDataSource>(TmdbRemoteDataSource(dio: dio));
     Get.put<MovieRepository>(
       MovieRepositoryImpl(remoteDataSource: Get.find<TmdbRemoteDataSource>()),
     );
 
-    // Register the use case. GetX injects the repository.
-    Get.put(GetTrendingMoviesUseCase(repository: Get.find<MovieRepository>()));
-
-    // Register the search use case. Same repository, different verb.
-    Get.put(SearchMoviesUseCase(repository: Get.find<MovieRepository>()));
-
-    // --- Presentation Layer ---
-    // Register the HomeController. We use `lazyPut` so the controller
-    // is only created when first accessed (saves startup time and
-    // avoids triggering `onInit` if the user never visits the Home screen).
-    Get.lazyPut(
-      () => HomeController(useCase: Get.find<GetTrendingMoviesUseCase>()),
+    // ── 3b. Firebase auth repository ─────────────────────────
+    Get.put<AuthRepository>(
+      FirebaseAuthRepository(firebaseAuth: Get.find<FirebaseAuth>()),
     );
 
-    // The SearchController is also lazy for the same reason.
+    // ── 3c. Firestore user-data repository ───────────────────
+    Get.put<UserDataRepository>(
+      FirestoreUserDataRepository(
+        firestore: Get.find<FirebaseFirestore>(),
+        auth: Get.find<AuthRepository>(),
+      ),
+    );
+
+    // ── 4. Use Cases ─────────────────────────────────────────
+    // TMDb
+    Get.put(
+      GetTrendingMoviesUseCase(repository: Get.find<MovieRepository>()),
+    );
+    Get.put(
+      SearchMoviesUseCase(repository: Get.find<MovieRepository>()),
+    );
+    // Firebase-backed
+    Get.put(
+      GetContinueWatchingUseCase(
+        repository: Get.find<UserDataRepository>(),
+      ),
+    );
+    final auth = Get.find<AuthRepository>();
+    Get.put(SignInUseCase(auth));
+    Get.put(SignUpUseCase(auth));
+    Get.put(SignOutUseCase(auth));
+    Get.put(ResetPasswordUseCase(auth));
+
+    // ── 5. Controllers ───────────────────────────────────────
+    Get.put(
+      AuthController(
+        authRepository: auth,
+        signInUseCase: Get.find<SignInUseCase>(),
+        signUpUseCase: Get.find<SignUpUseCase>(),
+        signOutUseCase: Get.find<SignOutUseCase>(),
+        resetPasswordUseCase: Get.find<ResetPasswordUseCase>(),
+      ),
+      permanent: true,
+    );
+
+    Get.lazyPut(
+      () => HomeController(
+        useCase: Get.find<GetTrendingMoviesUseCase>(),
+        continueWatchingUseCase: Get.find<GetContinueWatchingUseCase>(),
+      ),
+    );
     Get.lazyPut(
       () => SearchController(useCase: Get.find<SearchMoviesUseCase>()),
     );
+    Get.lazyPut(
+      () => WatchlistController(userData: Get.find<UserDataRepository>()),
+    );
 
-    // Watchlist: lives in memory for now. No use case yet — the controller
-    // holds the state directly. In Section 6 we will add a use case that
-    // syncs this list to Firestore.
-    Get.lazyPut(() => WatchlistController());
+    // PlayerController is PERMANENT — one instance shared across all
+    // Player navigations. The page calls attachMovie()/detachMovie()
+    // on entry/exit, but the instance itself stays alive so any
+    // background bridge state (Firebase write buffers, etc.) survives
+    // short-lived pages.
+    Get.put(
+      PlayerController(userDataRepo: Get.find<UserDataRepository>()),
+      permanent: true,
+    );
   }
 }

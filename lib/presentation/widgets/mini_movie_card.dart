@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-// ignore: unused_import
 import 'package:get/get.dart';
 
 import 'package:my_app/core/constants/app_theme.dart';
 import 'package:my_app/core/constants/app_dimensions.dart';
 import 'package:my_app/domain/entities/movie.dart';
-// ignore: unused_import
 import 'package:my_app/presentation/controllers/watchlist_controller.dart';
 import 'package:my_app/presentation/widgets/poster_image.dart';
 
